@@ -23,6 +23,11 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 
+
+
+
+
+
 # 4. สร้างโครงสร้างตาราง Todo
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -63,8 +68,9 @@ class Expense(db.Model):
             "category": self.category
         }
 
-
-
+# สั่งสร้างตารางฐานข้อมูลในไฟล์ database.db ถ้ายังไม่มี        
+with app.app_context():
+    db.create_all()
 
 
 # ********* ระบบ todo list ****************************************
@@ -199,11 +205,7 @@ def delete_expense(expense_id):
 # 5. คำสั่งรันเซิร์ฟเวอร์
 if __name__ == "__main__":
 
-# สั่งสร้างตารางฐานข้อมูลในไฟล์ database.db ถ้ายังไม่มี
-    with app.app_context():
-        db.create_all()
 
     app.run(host="0.0.0.0", port=5000, debug=True)
 
 
-#test
