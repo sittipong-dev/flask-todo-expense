@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการงานและบันทึกค่าใช้จ่าย</title>
+    <!-- ใช้ฟอนต์ Prompt จาก Google Fonts เพื่อความสวยงามอ่านง่าย -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --success: #10b981;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Prompt', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 30px 15px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* แบ่งหน้าจอเป็น 2 ฝั่ง (ซ้าย: Todo, ขวา: Expense) */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        @media (max-width: 850px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .card-header h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        /* ฟอร์มกรอกข้อมูล */
+        .input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary);
+        }
+
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-danger {
+            background-color: transparent;
+            color: var(--danger);
+            padding: 6px 10px;
+        }
+
+        .btn-danger:hover {
+            background-color: #fee2e2;
+        }
+
+        /* รายการข้อมูล (List Items) */
+        .list-items {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 420px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background-color: #f1f5f9;
+            border-radius: 10px;
+            transition: transform 0.1s;
+        }
+
+        .list-item:hover {
+            transform: translateY(-1px);
+        }
+
+        .todo-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .todo-left input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        .todo-title.completed {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+
+        /* ป้ายแสดงยอดเงินรวม */
+        .total-badge {
+            background: #e0e7ff;
+            color: var(--primary);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .badge-category {
+            background: #e2e8f0;
+            color: #475569;
+            font-size: 0.8rem;
+            padding: 2px 8px;
+            border-radius: 6px;
+            margin-right: 8px;
+        }
+
+        .expense-amount {
+            font-weight: 600;
+            color: #e11d48;
+            margin-right: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <h1>🚀 My Personal Dashboard</h1>
+            <p>ระบบจัดการงานที่ต้องทำ และ บันทึกรายจ่ายประจำวัน</p>
+        </header>
+
+        <div class="dashboard-grid">
+
+            <!-- 1. กล่อง Todo List -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>📝 รายการงาน (Todo List)</h2>
+                    <span id="todo-count" class="total-badge">0 รายการ</span>
+                </div>
+
+                <div class="input-group">
+                    <input type="text" id="todo-input" class="form-control" placeholder="พิมพ์งานที่ต้องทำ...">
+                    <button class="btn btn-primary" onclick="addTodo()">เพิ่มงาน</button>
+                </div>
+
+                <ul id="todo-list" class="list-items">
+                    <!-- รายการงานจะถูกโหลดมาแสดงที่นี่ด้วย JavaScript -->
+                </ul>
+            </div>
+
+            <!-- 2. กล่อง Daily Expenses -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>💰 บันทึกค่าใช้จ่าย (Expenses)</h2>
+                    <span id="expense-total" class="total-badge">รวม: 0 ฿</span>
+                </div>
+
+                <div class="input-group" style="flex-direction: column;">
+                    <input type="text" id="expense-title" class="form-control"
+                        placeholder="ชื่อรายการ (เช่น กาแฟ, ข้าวกลางวัน)">
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" id="expense-amount" class="form-control" placeholder="จำนวนเงิน (บาท)">
+                        <select id="expense-category" class="form-control" style="width: 140px;">
+                            <option value="อาหาร">อาหาร</option>
+                            <option value="เดินทาง">เดินทาง</option>
+                            <option value="ช้อปปิ้ง">ช้อปปิ้ง</option>
+                            <option value="บิล/ค่าน้ำไฟ">บิล</option>
+                            <option value="ทั่วไป" selected>ทั่วไป</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="addExpense()">บันทึก</button>
+                    </div>
+                </div>
+
+                <ul id="expense-list" class="list-items">
+                    <!-- รายการค่าใช้จ่ายจะถูกโหลดมาแสดงที่นี่ด้วย JavaScript -->
+                </ul>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 3. ส่วน JavaScript เชื่อมต่อกับ Flask API ผ่าน fetch() -->
+    <script>
+        // เมื่อเปิดหน้าเว็บ ให้โหลดข้อมูลทั้งสองอย่างขึ้นมาแสดงทันที
+        window.onload = function () {
+            loadTodos();
+            loadExpenses();
+        };
+
+        // ==================== ระบบ Todo List ====================
+
+        // ดึงรายการ Todo ทั้งหมด (GET /api/todos)
+        async function loadTodos() {
+            const res = await fetch('/api/todos');
+            const todos = await res.json();
+
+            const todoList = document.getElementById('todo-list');
+            const todoCount = document.getElementById('todo-count');
+            todoList.innerHTML = '';
+
+            todoCount.innerText = `${todos.length} รายการ`;
+
+            todos.forEach(todo => {
+                const li = document.createElement('li');
+                li.className = 'list-item';
+                li.innerHTML = `
+                    <div class="todo-left" onclick="toggleTodo(${todo.id}, ${!todo.completed})">
+                        <input type="checkbox" ${todo.completed ? 'checked' : ''} onclick="event.stopPropagation(); toggleTodo(${todo.id}, ${!todo.completed})">
+                        <span class="todo-title ${todo.completed ? 'completed' : ''}">${todo.title}</span>
+                    </div>
+                    <button class="btn btn-danger" onclick="deleteTodo(${todo.id})">ลบ</button>
+                `;
+                todoList.appendChild(li);
+            });
+        }
+
+        // เพิ่ม Todo ใหม่ (POST /api/todos)
+        async function addTodo() {
+            const input = document.getElementById('todo-input');
+            const title = input.value.trim();
+            if (!title) return alert('กรุณาพิมพ์ชื่องานก่อนครับ');
+
+            await fetch('/api/todos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: title })
+            });
+
+            input.value = '';
+            loadTodos(); // โหลดรายการใหม่
+        }
+
+        // แก้ไขสถานะ Todo ทำเสร็จ/ยังไม่เสร็จ (PUT /api/todos/<id>)
+        async function toggleTodo(id, newStatus) {
+            await fetch(`/api/todos/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ completed: newStatus })
+            });
+            loadTodos();
+        }
+
+        // ลบ Todo (DELETE /api/todos/<id>)
+        async function deleteTodo(id) {
+            if (confirm('คุณต้องการลบรายการนี้ใช่ไหม?')) {
+                await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+                loadTodos();
+            }
+        }
+
+        // ==================== ระบบ Expenses ====================
+
+        // ดึงรายการค่าใช้จ่ายทั้งหมด (GET /api/expenses)
+        async function loadExpenses() {
+            const res = await fetch('/api/expenses');
+            const data = await res.json();
+
+            const expenseList = document.getElementById('expense-list');
+            const expenseTotal = document.getElementById('expense-total');
+            expenseList.innerHTML = '';
+
+            expenseTotal.innerText = `รวม: ${data.total_amount.toLocaleString()} ฿`;
+
+            data.expenses.forEach(exp => {
+                const li = document.createElement('li');
+                li.className = 'list-item';
+                li.innerHTML = `
+                    <div>
+                        <span class="badge-category">${exp.category}</span>
+                        <strong>${exp.title}</strong>
+                    </div>
+                    <div>
+                        <span class="expense-amount">-${exp.amount.toLocaleString()} ฿</span>
+                        <button class="btn btn-danger" onclick="deleteExpense(${exp.id})">ลบ</button>
+                    </div>
+                `;
+                expenseList.appendChild(li);
+            });
+        }
+
+        // เพิ่มค่าใช้จ่ายใหม่ (POST /api/expenses)
+        async function addExpense() {
+            const titleInput = document.getElementById('expense-title');
+            const amountInput = document.getElementById('expense-amount');
+            const categoryInput = document.getElementById('expense-category');
+
+            const title = titleInput.value.trim();
+            const amount = parseFloat(amountInput.value);
+            const category = categoryInput.value;
+
+            if (!title || isNaN(amount) || amount <= 0) {
+                return alert('กรุณากรอกชื่อรายการ และ จำนวนเงินให้ถูกต้องครับ');
+            }
+
+            await fetch('/api/expenses', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, amount, category })
+            });
+
+            titleInput.value = '';
+            amountInput.value = '';
+            loadExpenses(); // โหลดรายการใหม่
+        }
+
+        // ลบค่าใช้จ่าย (DELETE /api/expenses/<id>)
+        async function deleteExpense(id) {
+            if (confirm('คุณต้องการลบค่าใช้จ่ายนี้ใช่ไหม?')) {
+                await fetch(`/api/expenses/${id}`, { method: 'DELETE' });
+                loadExpenses();
+            }
+        }
+    </script>
+</body>
+
+</html>
