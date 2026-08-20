@@ -229,12 +229,15 @@
                     <h2>📝 รายการงาน (Todo List)</h2>
                     <span id="todo-count" class="total-badge">0 รายการ</span>
                 </div>
-
+                <!-- 👇👇 วางตรงนี้ได้เลยครับ 👇👇 -->
                 <div class="input-group">
-                    <input type="text" id="todo-input" class="form-control" placeholder="พิมพ์งานที่ต้องทำ...">
+                    <input type="text" id="todo-input" class="form-control"
+                        placeholder="พิมพ์งานที่ต้องทำ หรือ พิมพ์เป้าหมายใหญ่ให้ AI ช่วยคิด...">
                     <button class="btn btn-primary" onclick="addTodo()">เพิ่มงาน</button>
+                    <button id="btn-ai-task" class="btn" onclick="aiBreakdownTask()"
+                        style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white; border: none; cursor: pointer; white-space: nowrap;">✨
+                        AI แตกงาน</button>
                 </div>
-
                 <ul id="todo-list" class="list-items">
                     <!-- รายการงานจะถูกโหลดมาแสดงที่นี่ด้วย JavaScript -->
                 </ul>
@@ -402,6 +405,48 @@
                 loadExpenses();
             }
         }
+        // 🤖 ฟังก์ชันสั่งให้ Gemini ช่วยแตกงานย่อย
+        async function aiBreakdownTask() {
+            const input = document.getElementById("todo-input");
+            const prompt = input.value.trim();
+
+            if (!prompt) {
+                alert("กรุณาพิมพ์เป้าหมายงานลงในช่องก่อน เช่น 'จัดทริปไปเที่ยวเชียงใหม่ 3 วัน'");
+                return;
+            }
+
+            const btnAi = document.getElementById("btn-ai-task");
+            const originalText = btnAi.innerHTML;
+
+            // เปลี่ยนข้อความปุ่มระหว่างรอ AI คิด
+            btnAi.innerHTML = "⏳ AI กำลังคิด...";
+            btnAi.disabled = true;
+
+            try {
+                const response = await fetch("/api/ai/breakdown-task", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    input.value = "";
+                    loadTodos(); // โหลดรายการงานที่ AI สร้างให้ขึ้นหน้าเว็บทันที
+                } else {
+                    alert(data.error || "เกิดข้อผิดพลาดจาก AI");
+                }
+            } catch (error) {
+                console.error("Error calling AI:", error);
+                alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์");
+            } finally {
+                // คืนค่าปุ่มกลับมาเหมือนเดิม
+                btnAi.innerHTML = originalText;
+                btnAi.disabled = false;
+            }
+        }
+
     </script>
 </body>
 

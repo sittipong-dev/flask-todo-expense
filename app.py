@@ -2,6 +2,18 @@ from flask import Flask, request, jsonify, render_template
 
 from flask_sqlalchemy import SQLAlchemy  #เพิ่ม import SQLAlchemy
 
+import os
+import json
+from dotenv import load_dotenv
+from google import genai
+
+# โหลด API Key จากไฟล์ .env
+load_dotenv()
+gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+
+
+
 
 # 1. สร้าง App ของ Flask
 app = Flask(__name__)
@@ -133,6 +145,59 @@ def delete_todo(todo_id):
     db.session.commit()      # บันทึกผล
     
     return jsonify({"message": f"ลบงาน ID {todo_id} เรียบร้อยแล้ว!"})
+
+
+# 🤖 Route ให้ Gemini ช่วยแตกเป้าหมายใหญ่ เป็นงานย่อยใน Todo List อัตโนมัติ
+@app.route("/api/ai/breakdown-task", methods=["POST"])
+def ai_breakdown_task():
+    data = request.get_json()
+    prompt = data.get("prompt", "").strip()
+
+    if not prompt:
+        return jsonify({"error": "กรุณาระบุเป้าหมายงาน"}), 400
+
+    try:
+        # สั่งให้ Gemini แตกงานย่อย 3-5 ข้อ และตอบกลับมาเป็น JSON Array
+        instruction = f"""
+        คุณคือผู้ช่วยจัดการงาน Todo List 
+        จงแตกเป้าหมายนี้: "{prompt}" ให้เป็นรายการงานย่อยที่กระชับ ชัดเจน 3 ถึง 5 ข้อ
+        ตอบเฉพาะ JSON Array ของข้อความเท่านั้น เช่น:
+        ["งานย่อยที่ 1", "งานย่อยที่ 2", "งานย่อยที่ 3"]
+        ไม่ต้องใส่คำอธิบายอื่นใดทั้งสิ้น
+        """
+
+        response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=instruction
+        )
+
+        # ล้างข้อความ markdown (เช่น ```json) เพื่อแปลงเป็น Python List
+        raw_text = response.text.replace("```json", "").replace("```", "").strip()
+        tasks = json.loads(raw_text)
+
+        # บันทึกงานย่อยทั้งหมดที่ AI คิดให้ ลงฐานข้อมูลทันที!
+        created_todos = []
+        for task_title in tasks:
+            new_todo = Todo(title=task_title)
+            db.session.add(new_todo)
+            created_todos.append(task_title)
+
+        db.session.commit()
+
+        return jsonify({
+            "message": f"AI สร้างงานสำเร็จ {len(created_todos)} รายการ",
+            "tasks": created_todos
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"เกิดข้อผิดพลาดจาก AI: {str(e)}"}), 500
+
+
+
+
+
+
 
 #  ***********************  เป็นของ  ระบบ  ค่าใข้จ่ายประจำวัน  ***************
 
